@@ -1,0 +1,180 @@
+{
+  "entities": {
+    "Client": {
+      "title": "Client",
+      "description": "Customer registered upon making an appointment, identified logically by normalized WhatsApp number",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Normalized phone number or client identifier",
+          "maxLength": 32,
+          "pattern": "^[0-9+]+$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the client",
+          "maxLength": 100,
+          "minLength": 2
+        },
+        "whatsapp": {
+          "type": "string",
+          "description": "Client WhatsApp contact phone number",
+          "maxLength": 25,
+          "minLength": 8
+        },
+        "marketingConsent": {
+          "type": "boolean",
+          "description": "Whether the client agreed to receive updates and promotions"
+        },
+        "consentTimestamp": {
+          "type": "string",
+          "description": "ISO timestamp when consent was registered"
+        },
+        "bookingCount": {
+          "type": "number",
+          "description": "Total number of appointments booked by this client"
+        },
+        "lastBookingAt": {
+          "type": "string",
+          "description": "Date or timestamp of the most recent appointment"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["id", "name", "whatsapp", "marketingConsent", "createdAt", "updatedAt"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Booking scheduled by a client for a specific barber service, date and time",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique appointment identifier",
+          "maxLength": 128
+        },
+        "clientId": {
+          "type": "string",
+          "description": "Normalized phone or client ID",
+          "maxLength": 32
+        },
+        "clientName": {
+          "type": "string",
+          "description": "Client full name",
+          "maxLength": 100,
+          "minLength": 2
+        },
+        "whatsapp": {
+          "type": "string",
+          "description": "WhatsApp contact number",
+          "maxLength": 25,
+          "minLength": 8
+        },
+        "serviceId": {
+          "type": "string",
+          "description": "Identifier of the chosen service",
+          "enum": ["cabelo-barba", "cabelo", "barba", "pintar-cabelo", "sobrancelha"]
+        },
+        "serviceName": {
+          "type": "string",
+          "description": "Display name of the chosen service",
+          "enum": ["Cabelo e Barba", "Cabelo", "Barba", "Pintar Cabelo", "Sobrancelha"]
+        },
+        "servicePrice": {
+          "type": "number",
+          "description": "Official price of the service in BRL",
+          "enum": [60, 35, 25, 20, 10]
+        },
+        "date": {
+          "type": "string",
+          "description": "Booking date in YYYY-MM-DD format",
+          "maxLength": 10,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+        },
+        "time": {
+          "type": "string",
+          "description": "Booking time in HH:mm format between 09:00 and 19:00",
+          "maxLength": 5,
+          "pattern": "^(09|10|11|12|13|14|15|16|17|18):(00|30)$"
+        },
+        "slotKey": {
+          "type": "string",
+          "description": "Unique slot key composed of date and time (e.g., 2026-10-01_14-30)",
+          "maxLength": 30
+        },
+        "status": {
+          "type": "string",
+          "description": "Booking status",
+          "enum": ["confirmed", "cancelled", "completed"]
+        },
+        "marketingConsent": {
+          "type": "boolean",
+          "description": "Whether client opted in for notifications"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Server creation timestamp"
+        }
+      },
+      "required": ["id", "clientId", "clientName", "whatsapp", "serviceId", "serviceName", "servicePrice", "date", "time", "slotKey", "status", "createdAt"]
+    },
+    "Slot": {
+      "title": "Slot",
+      "description": "Atomic reservation slot preventing double bookings for a specific date and time",
+      "type": "object",
+      "properties": {
+        "slotKey": {
+          "type": "string",
+          "description": "Unique key in YYYY-MM-DD_HH-mm format",
+          "maxLength": 30,
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}$"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date YYYY-MM-DD",
+          "maxLength": 10
+        },
+        "time": {
+          "type": "string",
+          "description": "Time HH:mm",
+          "maxLength": 5
+        },
+        "isBooked": {
+          "type": "boolean",
+          "description": "True if slot is reserved"
+        },
+        "appointmentId": {
+          "type": "string",
+          "description": "Associated appointment id",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp"
+        }
+      },
+      "required": ["slotKey", "date", "time", "isBooked", "appointmentId", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/clients/{clientId}": {
+      "schema": "Client",
+      "description": "Stores client records organized by normalized phone number to build customer history"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": "Appointment",
+      "description": "Stores all booked appointments"
+    },
+    "/slots/{slotKey}": {
+      "schema": "Slot",
+      "description": "Stores reserved time slots without PII for public availability lookup and atomic collision prevention"
+    }
+  }
+}

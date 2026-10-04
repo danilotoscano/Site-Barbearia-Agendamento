@@ -1,0 +1,6 @@
+{
+  "name": "Rodrigo Barbearia - Agendamento Online",
+  "description": "Bio site e agendamento online da Barbearia do Rodrigo. Cortes masculinos, degradê, barba modelada, pintura e sobrancelha com atendimento exclusivo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

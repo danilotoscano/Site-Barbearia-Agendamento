@@ -1,0 +1,96 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\+]+$');
+    }
+
+    function isValidService(serviceId, serviceName, servicePrice) {
+      return (serviceId == 'cabelo-barba' && serviceName == 'Cabelo e Barba' && servicePrice == 60) ||
+             (serviceId == 'cabelo' && serviceName == 'Cabelo' && servicePrice == 35) ||
+             (serviceId == 'barba' && serviceName == 'Barba' && servicePrice == 25) ||
+             (serviceId == 'pintar-cabelo' && serviceName == 'Pintar Cabelo' && servicePrice == 20) ||
+             (serviceId == 'sobrancelha' && serviceName == 'Sobrancelha' && servicePrice == 10);
+    }
+
+    function isValidOperatingTime(timeStr) {
+      return timeStr is string &&
+        timeStr.matches('^(09|10|11|12|13|14|15|16|17|18):(00|30)$');
+    }
+
+    function isValidDateFormat(dateStr) {
+      return dateStr is string &&
+        dateStr.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function isValidSlot(data) {
+      return data.keys().hasAll(['slotKey', 'date', 'time', 'isBooked', 'appointmentId', 'createdAt']) &&
+        data.keys().hasOnly(['slotKey', 'date', 'time', 'isBooked', 'appointmentId', 'createdAt']) &&
+        data.slotKey is string && data.slotKey.size() <= 30 &&
+        isValidDateFormat(data.date) &&
+        isValidOperatingTime(data.time) &&
+        data.isBooked == true &&
+        data.appointmentId is string && data.appointmentId.size() <= 128 &&
+        data.createdAt is string && data.createdAt.size() <= 40;
+    }
+
+    function isValidClient(data) {
+      return data.keys().hasAll(['id', 'name', 'whatsapp', 'marketingConsent', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'name', 'whatsapp', 'marketingConsent', 'consentTimestamp', 'bookingCount', 'lastBookingAt', 'createdAt', 'updatedAt']) &&
+        data.id is string && data.id.size() >= 8 && data.id.size() <= 32 &&
+        data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+        data.whatsapp is string && data.whatsapp.size() >= 8 && data.whatsapp.size() <= 25 &&
+        data.marketingConsent is bool &&
+        data.createdAt is string && data.createdAt.size() <= 40 &&
+        data.updatedAt is string && data.updatedAt.size() <= 40;
+    }
+
+    function isValidAppointment(data) {
+      return data.keys().hasAll(['id', 'clientId', 'clientName', 'whatsapp', 'serviceId', 'serviceName', 'servicePrice', 'date', 'time', 'slotKey', 'status', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'clientId', 'clientName', 'whatsapp', 'serviceId', 'serviceName', 'servicePrice', 'date', 'time', 'slotKey', 'status', 'marketingConsent', 'createdAt']) &&
+        data.id is string && data.id.size() <= 128 &&
+        data.clientId is string && data.clientId.size() <= 32 &&
+        data.clientName is string && data.clientName.size() >= 2 && data.clientName.size() <= 100 &&
+        data.whatsapp is string && data.whatsapp.size() >= 8 && data.whatsapp.size() <= 25 &&
+        isValidService(data.serviceId, data.serviceName, data.servicePrice) &&
+        isValidDateFormat(data.date) &&
+        isValidOperatingTime(data.time) &&
+        data.slotKey is string && data.slotKey.size() <= 30 &&
+        data.status == 'confirmed' &&
+        data.createdAt is string && data.createdAt.size() <= 40;
+    }
+
+    // SLOTS: Publicly readable for availability, create-only with anti-collision check
+    match /slots/{slotKey} {
+      allow read: if true;
+      allow create: if isValidId(slotKey) &&
+                      !exists(/databases/$(database)/documents/slots/$(slotKey)) &&
+                      isValidSlot(incoming());
+      allow update, delete: if false;
+    }
+
+    // CLIENTS: Private, writeable on booking to maintain customer database
+    match /clients/{clientId} {
+      allow read: if false;
+      allow create, update: if isValidId(clientId) && isValidClient(incoming());
+      allow delete: if false;
+    }
+
+    // APPOINTMENTS: Private, create-only
+    match /appointments/{appointmentId} {
+      allow read: if false;
+      allow create: if isValidId(appointmentId) && isValidAppointment(incoming());
+      allow update, delete: if false;
+    }
+  }
+}
